@@ -1,0 +1,8 @@
+{
+  "qr_code": {
+    "image": "/api/upload/static/轮播图/f001a4ba9e2b4cf992d979ac589e5efc.jpg",
+    "title": "小程序二维码",
+    "description": "扫描二维码体验小程序",
+    "enabled": false
+  }
+}

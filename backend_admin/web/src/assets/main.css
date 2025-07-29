@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* 使用数据属性实现主题切换 */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+

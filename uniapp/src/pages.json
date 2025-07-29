@@ -1,0 +1,47 @@
+{
+	"pages": [ 
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "企业展示"
+			}
+		},
+		{
+			"path": "pages/index/provider",
+			"style": {
+				"navigationBarTitleText": "供货价表"
+			}
+		},
+		{
+			"path": "pages/index/aboutus",
+			"style": {
+				"navigationBarTitleText": "关于我们"
+			}
+		}
+		,
+		{
+			"path": "pages/index/ppt1",
+			"style": {
+				"navigationBarTitleText": "企业近期情况"
+			}
+		},
+		{
+			"path": "pages/index/ppt2",
+			"style": {
+				"navigationBarTitleText": "企业近期情况"
+			}
+		},
+		{
+			"path": "pages/index/api-demo",
+			"style": {
+				"navigationBarTitleText": "API演示"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	}
+}
