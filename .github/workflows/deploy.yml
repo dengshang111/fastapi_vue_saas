@@ -1,0 +1,27 @@
+name: CI/CD Deploy (Single ECS)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to ECS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: root
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/fastapi_vue_saas
+            git pull
+            cd deploy
+            docker-compose build
+            docker-compose up -d
