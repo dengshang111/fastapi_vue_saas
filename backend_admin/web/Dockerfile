@@ -6,7 +6,7 @@ COPY package.json package-lock.json* ./
 RUN npm install
 
 COPY . .
-RUN npm run dev
+RUN npm run build
 
 # production stage
 FROM nginx:alpine
