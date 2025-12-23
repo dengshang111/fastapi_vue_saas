@@ -6,8 +6,8 @@ services:
       context: /opt/fastapi_vue_saas/backend_admin/api
     container_name: fastapi_backend
     restart: always
-    env_file:
-      - /opt/fastapi_vue_saas/deploy/.env
+#    env_file:
+#      - /opt/fastapi_vue_saas/deploy/.env
     depends_on:
       - mysql
       - redis
