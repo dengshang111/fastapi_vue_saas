@@ -10,7 +10,7 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(),'')
   
   return {
-  
+    base: '/admin/',
     envPrefix: 'APP_',  // 或者设置其他前缀，如 'APP_'
     plugins: [
       tailwindcss(),
