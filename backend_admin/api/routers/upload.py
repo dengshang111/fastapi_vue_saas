@@ -9,9 +9,9 @@ import io
 import shutil
 from pydantic import BaseModel
 
-from auth import get_current_user
+from auth.auth import get_current_user
 from models import UserInfo
-from config import settings
+from configs.config import settings
 
 # 请求模型
 class GroupCreate(BaseModel):

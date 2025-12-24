@@ -4,7 +4,7 @@ from typing import List
 import json
 import os
 
-from auth import get_current_user
+from auth.auth import get_current_user
 from models import UserInfo
 
 router = APIRouter(prefix="/api/content", tags=["企业内容管理"])

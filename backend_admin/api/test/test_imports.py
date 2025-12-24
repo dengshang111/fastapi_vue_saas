@@ -7,7 +7,7 @@ def test_imports():
     """测试所有模块的导入"""
     try:
         print("测试导入 auth 模块...")
-        from auth import get_current_user, create_access_token, verify_token
+        from auth.auth import get_current_user, create_access_token, verify_token
         print("✅ auth 模块导入成功")
         
         print("测试导入 models 模块...")
@@ -15,7 +15,7 @@ def test_imports():
         print("✅ models 模块导入成功")
         
         print("测试导入 config 模块...")
-        from config import settings
+        from configs.config import settings
         print("✅ config 模块导入成功")
         
         print("测试导入 routers.swiper 模块...")

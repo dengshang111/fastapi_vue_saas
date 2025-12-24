@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import Optional
 import os
 import json
 from pydantic import BaseModel
 
-from auth import get_current_user
+from auth.auth import get_current_user
 from models import UserInfo
-from config import settings
+
 
 # 请求模型
 class QrCodeConfig(BaseModel):

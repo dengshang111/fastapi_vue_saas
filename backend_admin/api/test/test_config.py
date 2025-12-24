@@ -5,7 +5,7 @@
 """
 
 import os
-from config import settings
+from configs.config import settings
 
 def test_config():
     """测试配置加载"""
@@ -31,7 +31,7 @@ def test_config():
         os.environ[key] = value
     
     # 重新创建设置实例
-    from config import Settings
+    from configs.config import Settings
     test_settings = Settings()
     
     print(f"覆盖后的应用名称: {test_settings.app_name}")

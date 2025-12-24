@@ -75,8 +75,9 @@ cp env.example .env
 编辑 `.env` 文件，根据需要修改配置项。
 
 ### 3. 在代码中使用
+
 ```python
-from config import settings
+from configs.config import settings
 
 # 使用配置
 app_name = settings.app_name

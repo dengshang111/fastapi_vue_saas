@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime
 
-from auth import get_current_user
+from auth.auth import get_current_user
 from models import UserInfo
 
 router = APIRouter(prefix="/api/product", tags=["产品管理"])

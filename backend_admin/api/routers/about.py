@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import json
 import os
 
-from auth import get_current_user
+from auth.auth import get_current_user
 from models import UserInfo
 
 router = APIRouter(prefix="/api/about", tags=["关于我们管理"])

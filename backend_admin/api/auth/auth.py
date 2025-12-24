@@ -3,7 +3,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from config import settings
+from configs.config import settings
 from models import UserInfo
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
