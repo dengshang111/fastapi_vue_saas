@@ -1,106 +1,96 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
-from pydantic import BaseModel
-import json
 import os
-from datetime import datetime
+import json
+import aiofiles
+from pathlib import Path
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from auth.auth import get_current_user
 from models import UserInfo
 
-router = APIRouter(prefix="/api/swiper", tags=["轮播图管理"])
 
-# 数据模型
+# --- 1. 数据模型 ---
+
 class SwiperImage(BaseModel):
-    title: str = ""
-    image: str
+    title: str = Field("", description="图片标题/描述")
+    image: str = Field(..., description="图片URL或相对路径")
+
 
 class SwiperConfig(BaseModel):
-    images: List[SwiperImage]
+    images: List[SwiperImage] = []
 
-# 数据文件路径
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "轮播图", "config.json")
-UPLOAD_DIR = "uploads"
 
-# 确保数据目录存在
-os.makedirs("data", exist_ok=True)
-os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# --- 2. 配置管理服务 ---
 
-def load_config_data() -> dict:
-    """加载config.json配置数据"""
-    if not os.path.exists(CONFIG_FILE):
-        # 初始化默认配置
-        default_config = {"images": []}
-        save_config_data(default_config)
-        return default_config
-    
-    try:
-        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"加载config.json失败: {e}")
-        return {"images": []}
+class SwiperService:
+    def __init__(self):
+        # 使用 pathlib 保证跨平台路径兼容性
+        self.base_dir = Path(__file__).parent.parent
+        self.config_path = self.base_dir / "config" / "轮播图" / "config.json"
+        self.upload_dir = Path("uploads")
 
-def save_config_data(data: dict):
-    """保存config.json配置数据"""
-    try:
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"保存config.json失败: {e}")
+        # 确保初始化时目录存在
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        self.upload_dir.mkdir(parents=True, exist_ok=True)
+
+    async def load(self) -> dict:
+        """异步加载轮播图配置"""
+        if not self.config_path.exists():
+            return {"images": []}
+        try:
+            async with aiofiles.open(self.config_path, mode='r', encoding='utf-8') as f:
+                content = await f.read()
+                return json.loads(content)
+        except (json.JSONDecodeError, Exception):
+            return {"images": []}
+
+    async def save(self, data: dict):
+        """异步保存轮播图配置"""
+        async with aiofiles.open(self.config_path, mode='w', encoding='utf-8') as f:
+            await f.write(json.dumps(data, ensure_ascii=False, indent=2))
+
+    def verify_image(self, url: str) -> bool:
+        """解析URL并检查物理文件是否存在"""
+        if not url:
+            return False
+        # 无论URL前缀如何，提取最后的文件名进行校验
+        filename = Path(url).name
+        return (self.upload_dir / filename).exists()
+
+
+swiper_service = SwiperService()
+router = APIRouter(prefix="/swiper", tags=["轮播图管理"])
+
+
+# --- 3. 路由接口 ---
 
 @router.get("/config", response_model=SwiperConfig)
-async def get_swiper_config(current_user: UserInfo = Depends(get_current_user)):
+async def get_swiper_config(_: UserInfo = Depends(get_current_user)):
     """获取轮播图配置"""
-    try:
-        config_data = load_config_data()
-        return config_data
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取轮播图配置失败: {str(e)}"
-        )
+    return await swiper_service.load()
+
 
 @router.put("/config")
 async def update_swiper_config(
-    config: SwiperConfig,
-    current_user: UserInfo = Depends(get_current_user)
+        config: SwiperConfig,
+        _: UserInfo = Depends(get_current_user)
 ):
-    """更新轮播图配置"""
+    """更新轮播图配置并校验图片"""
+    # 1. 物理文件存在性校验
+    for item in config.images:
+        if not swiper_service.verify_image(item.image):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"轮播图片物理文件不存在: {item.image}"
+            )
+
+    # 2. 异步持久化
     try:
-        # 验证所有图片路径是否存在
-        for item in config.images:
-            # 从图片URL中提取路径信息
-            # URL格式可能是: /api/upload/static/filename 或 /api/upload/static/group/filename
-            image_url = item.image
-            
-            # 移除URL前缀，获取相对路径
-            if image_url.startswith("/api/upload/static/"):
-                relative_path = image_url[len("/api/upload/static/"):]
-            else:
-                # 如果不是标准URL格式，尝试直接使用文件名
-                relative_path = os.path.basename(image_url)
-            
-            # 构建完整的文件路径
-            image_path = os.path.join(UPLOAD_DIR, relative_path)
-            
-            # 检查文件是否存在
-            if not os.path.exists(image_path):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"图片不存在: {item.image}"
-                )
-        
-        # 保存配置
-        save_config_data(config.dict())
-        
-        return {"message": "配置更新成功"}
-    except HTTPException as e:
-        raise e
+        await swiper_service.save(config.dict())
+        return {"message": "轮播图配置更新成功"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新轮播图配置失败: {str(e)}"
+            detail=f"保存配置失败: {str(e)}"
         )
-

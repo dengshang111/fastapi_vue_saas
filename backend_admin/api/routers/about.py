@@ -1,99 +1,81 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
-import json
 import os
+import json
+import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from pydantic import BaseModel, Field, root_validator
 
 from auth.auth import get_current_user
 from models import UserInfo
 
-router = APIRouter(prefix="/api/about", tags=["关于我们管理"])
+# --- 1. 模型定义（含自动校验） ---
 
-# 数据模型
 class ContentItem(BaseModel):
-    title: str
-    text: str
+    title: str = Field(..., min_length=1)
+    text: str = Field(...)
 
 class ContentBlock(BaseModel):
     type: str
-    title: str
+    title: str = Field(..., min_length=1)
     subtitle: Optional[str] = ""
-    items: Optional[List[ContentItem]] = []
+    items: List[ContentItem] = []
+
+    @root_validator(skip_on_failure=True)
+    def check_items_requirement(cls, values):
+        """业务校验：特定类型必须包含 items"""
+        b_type = values.get("type")
+        items = values.get("items")
+        if b_type in ['origin', 'mission', 'timeline'] and not items:
+            raise ValueError(f"类型为 {b_type} 时，内容项(items)不能为空")
+        return values
 
 class AboutConfig(BaseModel):
     content: List[ContentBlock]
 
-# 数据文件路径
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "关于我们", "config.json")
+# --- 2. 逻辑层：配置管理 ---
 
-# 确保数据目录存在
-os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+class ConfigManager:
+    def __init__(self):
+        # 统一路径管理
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.path = os.path.join(base_dir, "config", "关于我们", "config.json")
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
-def load_config_data() -> dict:
-    """加载config.json配置数据"""
-    if not os.path.exists(CONFIG_FILE):
-        # 初始化默认配置
-        default_config = {"content": []}
-        save_config_data(default_config)
-        return default_config
-    
-    try:
-        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"加载config.json失败: {e}")
-        return {"content": []}
+    async def read(self) -> dict:
+        if not os.path.exists(self.path):
+            return {"content": []}
+        async with aiofiles.open(self.path, mode='r', encoding='utf-8') as f:
+            try:
+                content = await f.read()
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return {"content": []}
 
-def save_config_data(data: dict):
-    """保存config.json配置数据"""
-    try:
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"保存config.json失败: {e}")
+    async def write(self, data: dict):
+        async with aiofiles.open(self.path, mode='w', encoding='utf-8') as f:
+            await f.write(json.dumps(data, ensure_ascii=False, indent=2))
+
+config_manager = ConfigManager()
+router = APIRouter(prefix="/about", tags=["关于我们管理"])
+
+# --- 3. 路由接口 ---
 
 @router.get("/config", response_model=AboutConfig)
-async def get_about_config(current_user: UserInfo = Depends(get_current_user)):
-    """获取关于我们配置"""
-    try:
-        config_data = load_config_data()
-        return config_data
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取关于我们配置失败: {str(e)}"
-        )
+async def get_about_config(_: UserInfo = Depends(get_current_user)):
+    """获取配置（异步非阻塞）"""
+    return await config_manager.read()
 
 @router.put("/config")
 async def update_about_config(
-    config: AboutConfig,
-    current_user: UserInfo = Depends(get_current_user)
+    config: AboutConfig, 
+    _: UserInfo = Depends(get_current_user)
 ):
-    """更新关于我们配置"""
+    """更新配置（利用 Pydantic 自动校验）"""
     try:
-        # 验证内容结构
-        for block in config.content:
-            if not block.type or not block.title:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="内容块必须包含类型和标题"
-                )
-            
-            # 验证需要items的内容块
-            if block.type in ['origin', 'mission', 'timeline'] and not block.items:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"{block.type}类型的内容块必须包含内容项"
-                )
-        
-        # 保存配置
-        save_config_data(config.dict())
-        
+        await config_manager.write(config.dict())
         return {"message": "配置更新成功"}
-    except HTTPException as e:
-        raise e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新关于我们配置失败: {str(e)}"
-        ) 
+            detail=f"写入文件失败: {str(e)}"
+        )
